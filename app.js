@@ -46,6 +46,7 @@ function render() {
   if (view.name === "catalog") renderCatalog();
   else if (view.name === "new") renderNewGame();
   else if (view.name === "game") renderGame(view.gameId);
+  else if (view.name === "nochmal") renderNochMal();
   else renderHome();
 }
 
@@ -201,6 +202,7 @@ app.addEventListener("click", (event) => {
   const deleteGame = event.target.closest('[data-action="delete-game"]');
 
   if (gameMode?.dataset.mode === "free") navigate("free");
+  else if (gameMode?.dataset.mode === "nochmal") navigate("nochmal");
   else if (newGame) navigate("new");
   else if (gameCard) navigate("game", gameCard.dataset.gameId);
   else if (editRound) startEditingRound(editRound.dataset.editRound);
@@ -244,7 +246,7 @@ app.addEventListener("submit", (event) => {
 });
 
 backButton.addEventListener("click", () => {
-  if (view.name === "free") navigate("catalog");
+  if (view.name === "free" || view.name === "nochmal") navigate("catalog");
   else navigate("free");
 });
 
