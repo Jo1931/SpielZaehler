@@ -78,9 +78,9 @@ function nmDiceHtml(s){
   const numDice=nums.map((x,i)=>'<button type="button" '+(!s.turn.rolled||done||confirmed||(!active&&!first3)||!nmAvailableDie(s,"number",i)?'disabled':'')+' class="nm-die nm-number-die '+(pending.number===i?'nm-selected':'')+'" data-nm-die-number="'+i+'">'+numFace(x)+'</button>').join("");
   let action='';
   if(!s.turn.rolled) action=active?'<button type="button" class="nm-roll-all" id="nm-roll-all">Alle 6 würfeln</button>':'<button class="nm-roll-all" disabled>Warte auf '+escapeHtml(s.players.find(p=>p.id===s.turn.activePlayerId)?.name||"Mitspieler")+'</button>';
-  else if(active&&!first3&&!r) action='<button type="button" class="secondary-button small" id="nm-pass">Passen</button>';
   else if(done) action='<button class="nm-roll-all" disabled>Auswahl bestätigt</button>';
-  else if(s.turn.choice?.[me.id]) action='<button type="button" class="nm-roll-all" id="nm-confirm-fields">Felder bestätigen</button>'; else action='<button type="button" class="nm-roll-all" id="nm-confirm-dice">Würfel bestätigen</button>';
+  else if(s.turn.choice?.[me.id]) action='<button type="button" class="nm-roll-all" id="nm-confirm-fields">Felder bestätigen</button>';
+  else { action='<button type="button" class="nm-roll-all" id="nm-confirm-dice">Würfel bestätigen</button>'; if(active) action+='<button type="button" class="secondary-button small" id="nm-pass">Passen</button>'; }
   return '<div class="nm-dice-panel"><small>Zug '+s.turn.number+' · '+(active?'Du bist aktiv':escapeHtml(s.players.find(p=>p.id===s.turn.activePlayerId)?.name||"")+' ist aktiv')+(first3?' · freie Wahl':'')+'</small><div class="nm-dice-row">'+colorDice+'</div><div class="nm-dice-row">'+numDice+'</div>'+action+'</div>';
 }
 
