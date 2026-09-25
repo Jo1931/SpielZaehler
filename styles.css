@@ -203,3 +203,13 @@ button.picker-card { cursor: pointer; }
   main > section { animation: enter .22s ease both; }
   @keyframes enter { from { opacity: 0; transform: translateY(5px); } }
 }
+
+/* Digitaler Noch-mal-Spielblock */
+.nm-tabs{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}.nm-tab{flex:0 0 auto;min-width:96px;border:1px solid var(--line);border-radius:15px;padding:9px 12px;color:var(--muted);background:var(--surface);font-weight:750}.nm-tab strong{display:block;color:var(--text);font-size:1.1rem;margin-top:2px}.nm-tab.active{border-color:var(--accent);color:var(--accent)}
+.nm-head{display:flex;align-items:center;justify-content:space-between}.nm-head h2{font-size:1.45rem}.nm-total{text-align:right}.nm-total small{display:block;color:var(--muted)}.nm-total strong{font-size:2rem;color:var(--accent)}
+.nm-board-wrap{width:100%;overflow-x:auto;padding-bottom:5px}.nm-board{min-width:600px;display:grid;grid-template-columns:22px repeat(15,1fr);gap:3px;padding:8px;border-radius:18px;background:var(--surface);border:1px solid rgb(255 255 255 / 7%)}
+.nm-col-label,.nm-row-label{display:grid;place-items:center;font-size:.7rem;color:var(--muted)}.nm-cell{aspect-ratio:1;border:0;border-radius:7px;position:relative;cursor:pointer;box-shadow:inset 0 0 0 1px rgb(255 255 255 / 18%)}.nm-cell span{font-size:.72rem;color:rgb(255 255 255 / 88%)}.nm-cell.checked::after{content:"×";position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:1.7rem;font-weight:900;text-shadow:0 1px 3px #000}.nm-cell.checked{filter:saturate(.72) brightness(.72)}
+.nm-g{background:#77b94a}.nm-y{background:#f2c62d}.nm-b{background:#4eb4df}.nm-o{background:#e98a31}.nm-p{background:#df3b82}.nm-col-score{text-align:center;line-height:1}.nm-col-score b,.nm-col-score small{display:block}.nm-col-score small{color:var(--muted);margin-top:3px}
+.nm-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}.nm-summary span{display:block;color:var(--muted);font-size:.72rem}.nm-summary strong{display:block;margin-top:4px;font-size:1.2rem}
+.nm-jokers{display:flex;justify-content:space-between;align-items:center;gap:12px}.nm-jokers small{display:block;color:var(--muted);margin-top:3px}.nm-joker-actions{display:flex;align-items:center;gap:10px}.nm-joker-actions button{width:40px;height:40px;border:0;border-radius:12px;background:var(--surface-2);color:var(--text);font-size:1.3rem}.nm-joker-actions b{min-width:20px;text-align:center}
+@media(max-width:480px){.nm-summary{grid-template-columns:repeat(2,1fr)}}
