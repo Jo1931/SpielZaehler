@@ -6,6 +6,7 @@ function skArchivePut(s){if(!s||!s.id)return;const a=skArchive().filter(x=>x.id!
 function skLoad(){try{return JSON.parse(localStorage.getItem(SK_STORAGE))}catch{return null}}
 function skSave(s){localStorage.setItem(SK_STORAGE,JSON.stringify(s));if(s&&s.phase!=="setup")skArchivePut(s)}
 function skNew(){return {phase:"setup",round:1,players:[],history:[]}}
+function skLeaveGame(){const s=skLoad();if(s&&s.phase!=="setup")skArchivePut(s);localStorage.removeItem(SK_STORAGE)}
 function skCalc(round,bid,tricks,bonus){bid=Number(bid);tricks=Number(tricks);bonus=Number(bonus)||0;if(bid===0)return (tricks===0?1:-1)*round*10+(tricks===0?bonus:0);if(bid===tricks)return bid*20+bonus;return -10*Math.abs(bid-tricks)}
 function skTotals(s){const t=Object.fromEntries(s.players.map(p=>[p.id,0]));s.history.forEach(r=>Object.entries(r.scores).forEach(([id,v])=>t[id]=(t[id]||0)+v));return t}
 function skPlayerFields(n=3){return Array.from({length:n},(_,i)=>'<input class="text-input sk-name" placeholder="Spieler '+(i+1)+'" maxlength="24" autocomplete="off">').join("")}
