@@ -80,7 +80,7 @@ function renderNmBoard(s,p){
   NM_COLORS.forEach((row,r)=>{b.insertAdjacentHTML("beforeend",'<b class="nm-row-label">'+(r+1)+'</b>');row.forEach((color,c)=>{const key=r+"-"+c;b.insertAdjacentHTML("beforeend",'<button type="button" class="nm-cell nm-'+color+' '+(set.has(key)?'checked':'')+'" data-nm-cell="'+key+'" aria-label="'+NM_COLOR_NAMES[color]+' '+NM_COLS[c]+(r+1)+'">'+(NM_STARS.has(key)?'<span>★</span>':'')+'</button>')})});
   b.insertAdjacentHTML("beforeend",'<span></span>'+NM_COLS.map((x,c)=>'<div class="nm-col-score"><b>'+NM_HIGH[c]+'</b><small>'+NM_LOW[c]+'</small></div>').join(""));
 }
-app.addEventListener("click",e=>{
+app.addEventListener("click",async e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
   if(e.target.id==="nm-local-mode"){document.querySelector("#nm-local-setup")?.classList.remove("hidden");document.querySelector("#nm-online-setup")?.classList.add("hidden");return}
