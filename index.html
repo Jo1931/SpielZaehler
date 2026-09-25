@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101827" />
+    <meta name="description" content="Spielstände gemeinsam Runde für Runde mitschreiben." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SpielZähler" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/icon-180.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>SpielZähler</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="icon-button hidden" id="back-button" type="button" aria-label="Zurück">←</button>
+        <div>
+          <p class="eyebrow">Punkte im Blick</p>
+          <h1 id="page-title">SpielZähler</h1>
+        </div>
+        <button class="install-button hidden" id="install-button" type="button">Installieren</button>
+      </header>
+
+      <main id="app" aria-live="polite"></main>
+
+      <div class="connection-status hidden" id="connection-status" role="status">
+        Offline – deine Änderungen bleiben auf diesem Gerät gespeichert.
+      </div>
+    </div>
+
+    <template id="home-template">
+      <section class="stack home-view">
+        <div class="hero card">
+          <div>
+            <span class="hero-icon" aria-hidden="true">♟</span>
+            <h2>Wer schreibt, gewinnt.</h2>
+            <p>Neue Partie starten, Punkte eintragen und jederzeit weiterspielen.</p>
+          </div>
+          <button class="primary-button" data-action="new-game" type="button">Neue Partie</button>
+        </div>
+        <section>
+          <div class="section-heading">
+            <h2>Deine Partien</h2>
+            <span class="count-badge" id="game-count"></span>
+          </div>
+          <div class="game-list" id="game-list"></div>
+        </section>
+      </section>
+    </template>
+
+    <template id="new-game-template">
+      <form class="stack" id="new-game-form">
+        <section class="card stack compact">
+          <label class="field-label" for="game-name">Spiel</label>
+          <input class="text-input" id="game-name" name="gameName" placeholder="z. B. Kniffel, Rommé, Wizard" maxlength="40" required autocomplete="off" />
+        </section>
+        <section class="card stack compact">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Mindestens 2</p>
+              <h2>Mitspieler</h2>
+            </div>
+            <button class="secondary-button small" id="add-player" type="button">+ Person</button>
+          </div>
+          <div class="player-fields" id="player-fields"></div>
+        </section>
+        <button class="primary-button sticky-action" type="submit">Partie starten</button>
+      </form>
+    </template>
+
+    <template id="game-template">
+      <section class="stack game-view">
+        <section class="scoreboard" id="scoreboard"></section>
+        <form class="card stack compact" id="round-form">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" id="round-kicker">Nächste Runde</p>
+              <h2 id="round-form-title">Punkte eintragen</h2>
+            </div>
+            <button class="text-button hidden" id="cancel-edit" type="button">Abbrechen</button>
+          </div>
+          <div class="score-fields" id="score-fields"></div>
+          <button class="primary-button" id="save-round" type="submit">Runde speichern</button>
+        </form>
+        <section>
+          <div class="section-heading">
+            <h2>Runden</h2>
+            <span class="count-badge" id="round-count"></span>
+          </div>
+          <div class="round-list" id="round-list"></div>
+        </section>
+        <button class="danger-button" data-action="delete-game" type="button">Partie löschen</button>
+      </section>
+    </template>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
