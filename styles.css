@@ -234,3 +234,5 @@ button.picker-card { cursor: pointer; }
 .nm-mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.nm-join-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.nm-room-code{display:inline-block;margin-left:5px;padding:2px 7px;border-radius:7px;background:var(--surface-2);color:var(--accent);letter-spacing:.12em}
 
 .nm-archive-list{display:grid;gap:10px}.nm-archive-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:14px;background:var(--surface-2)}.nm-archive-item>div:first-child{display:grid;gap:3px}.nm-archive-item small{opacity:.7}.nm-archive-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+
+.nm-online-players{display:flex;gap:8px;overflow:auto}.nm-online-players span{white-space:nowrap;padding:7px 10px;border-radius:12px;background:var(--surface-2)}.nm-online-players span.active{outline:2px solid currentColor}.nm-die[disabled]{opacity:.35}.nm-die.nm-selected{outline:3px solid currentColor;transform:scale(1.08)}
