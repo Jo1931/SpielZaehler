@@ -1,6 +1,10 @@
 const NOCHMAL_KEY = "spielzaehler-nochmal-v1";
 const NM_ONLINE_KEY = "spielzaehler-nochmal-online-v1";
 const NM_ONLINE_ARCHIVE = "spielzaehler-nochmal-online-archive-v1";
+const NM_LOCAL_ARCHIVE = "spielzaehler-nochmal-local-archive-v1";
+function nmLocalArchive(){try{const a=JSON.parse(localStorage.getItem(NM_LOCAL_ARCHIVE));return Array.isArray(a)?a:[]}catch{return []}}
+function nmArchiveLocal(state){if(!state)return;const copy=JSON.parse(JSON.stringify(state));copy.archiveId=copy.archiveId||makeId();const a=nmLocalArchive().filter(x=>x.archiveId!==copy.archiveId);a.unshift(copy);localStorage.setItem(NM_LOCAL_ARCHIVE,JSON.stringify(a.slice(0,20)));return copy.archiveId}
+function nmRemoveLocalArchive(id){localStorage.setItem(NM_LOCAL_ARCHIVE,JSON.stringify(nmLocalArchive().filter(x=>x.archiveId!==id)))}
 function nmOnlineArchive(){try{const a=JSON.parse(localStorage.getItem(NM_ONLINE_ARCHIVE));return Array.isArray(a)?a:[]}catch{return []}}
 function nmArchiveRoom(code,state){if(!code)return;const a=nmOnlineArchive().filter(x=>x.code!==code);a.unshift({code,state,updatedAt:Date.now()});localStorage.setItem(NM_ONLINE_ARCHIVE,JSON.stringify(a.slice(0,20)))}
 function nmRemoveArchivedRoom(code){localStorage.setItem(NM_ONLINE_ARCHIVE,JSON.stringify(nmOnlineArchive().filter(x=>x.code!==code)))}
@@ -76,6 +80,12 @@ function renderNochMal(){
 function renderNmSetup(){
   const el=document.createElement("form");el.id="nm-setup";el.className="stack";
   el.innerHTML='<section class="hero card"><div><span class="hero-icon">✕</span><h2>Noch mal!</h2><p>Digitaler Spielblock. Lokal wie bisher oder gemeinsam auf mehreren Handys.</p></div></section><section class="card stack compact"><p class="eyebrow">Spielmodus</p><div class="nm-mode-grid"><button class="secondary-button" type="button" id="nm-local-mode">Lokal spielen</button><button class="primary-button" type="button" id="nm-online-mode">Online spielen</button></div></section><section class="card stack compact" id="nm-local-setup"><p class="eyebrow">1–6 Personen</p><h2>Mitspieler</h2><div id="nm-names" class="player-fields"><input class="text-input" placeholder="Name" required><input class="text-input" placeholder="Name"></div><button class="secondary-button" type="button" id="nm-add">+ Person</button><button class="primary-button" type="submit">Lokale Partie starten</button></section><section class="card stack compact hidden" id="nm-online-setup"><p class="eyebrow">Mehrere Handys</p><h2>Online-Partie</h2><p class="sk-help">Erstelle einen Raum und teile den 4-stelligen Code – oder tritt einem bestehenden Raum bei.</p><button class="primary-button" type="button" id="nm-online-create">Raum erstellen</button><div class="nm-join-row"><input class="text-input" id="nm-room-input" placeholder="Raumcode" maxlength="4" autocomplete="off"><button class="secondary-button" type="button" id="nm-online-join">Beitreten</button></div></section>';
+  const localArchive=nmLocalArchive();
+  if(localArchive.length){
+    const box=document.createElement("section");box.className="card stack compact nm-local-archive";
+    box.innerHTML='<div><p class="eyebrow">Lokal</p><h2>Lokales Archiv</h2></div><div class="nm-archive-list">'+localArchive.map(x=>{const names=(x.players||[]).map(p=>escapeHtml(p.name)).join(", ");return '<div class="nm-archive-item"><div><strong>'+(names||"Noch mal!")+'</strong><small>'+new Date(x.createdAt||Date.now()).toLocaleDateString("de-DE")+'</small></div><div class="nm-archive-actions"><button class="secondary-button small" type="button" data-nm-local-rejoin="'+escapeHtml(x.archiveId)+'">Weiter</button><button class="text-button" type="button" data-nm-local-delete="'+escapeHtml(x.archiveId)+'">Löschen</button></div></div>'}).join("")+'</div>';
+    el.append(box);
+  }
   const archive=nmOnlineArchive();
   if(archive.length){
     const box=document.createElement("section");box.className="card stack compact nm-online-archive";
@@ -93,6 +103,8 @@ function renderNmBoard(s,p){
 app.addEventListener("click",async e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
+  const localRejoin=e.target.closest("[data-nm-local-rejoin]");if(localRejoin){const saved=nmLocalArchive().find(x=>x.archiveId===localRejoin.dataset.nmLocalRejoin);if(saved){nmSave(JSON.parse(JSON.stringify(saved)),false);renderNochMal()}return}
+  const localDelete=e.target.closest("[data-nm-local-delete]");if(localDelete){if(confirm("Lokale Partie aus dem Archiv entfernen?")){nmRemoveLocalArchive(localDelete.dataset.nmLocalDelete);renderNochMal()}return}
   const rejoin=e.target.closest("[data-nm-rejoin]");if(rejoin){try{await nmJoinOnline(rejoin.dataset.nmRejoin);renderNochMal()}catch(err){alert("Partie nicht mehr verfügbar: "+err.message)}return}
   const delArchive=e.target.closest("[data-nm-archive-delete]");if(delArchive){if(confirm("Partie aus dem Archiv entfernen?")){nmRemoveArchivedRoom(delArchive.dataset.nmArchiveDelete);renderNochMal()}return}
   if(e.target.id==="nm-local-mode"){document.querySelector("#nm-local-setup")?.classList.remove("hidden");document.querySelector("#nm-online-setup")?.classList.add("hidden");return}
@@ -104,7 +116,7 @@ app.addEventListener("click",async e=>{
   const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
   const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s,true);cell.classList.toggle("checked",i<0);const score=nmScore(s,p);const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=4){vals[0].textContent=score.colPts;vals[1].textContent=score.colorPts;vals[2].textContent=p.jokers;vals[3].textContent="−"+(score.openStars*2)}return}
   const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s,true);const score=nmScore(s,p);const jokerValue=document.querySelector(".nm-joker-actions b");if(jokerValue)jokerValue.textContent=p.jokers;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=3)vals[2].textContent=p.jokers;const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;return}
-  if(e.target.id==="nm-reset"){if(s?.online){if(confirm("Online-Partie verlassen?")){nmLeaveOnline();renderNochMal()}}else if(confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}return}
+  if(e.target.id==="nm-reset"){if(s?.online){if(confirm("Online-Partie verlassen?")){nmLeaveOnline();renderNochMal()}}else if(confirm("Lokale Partie beenden und im Archiv speichern?")){nmArchiveLocal(s);localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}return}
 });
 app.addEventListener("submit",e=>{
   if(e.target.id!=="nm-setup")return;e.preventDefault();
