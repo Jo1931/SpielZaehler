@@ -13,6 +13,10 @@ const NM_COLORS = [
 ];
 const NM_STARS = new Set(["0-7","0-11","1-2","1-4","1-9","2-0","3-5","3-13","5-1","5-3","5-8","5-10","5-14","6-12"]);
 const NM_COLOR_NAMES={g:"Grün",y:"Gelb",b:"Blau",o:"Orange",p:"Pink"};
+const NM_DIE_COLORS=["g","y","b","o","p","joker"];
+const NM_DIE_NUMBERS=[1,2,3,4,5,"joker"];
+function nmRollDie(faces){return faces[Math.floor(Math.random()*faces.length)]}
+function nmDiceHtml(s){const d=s.dice||{};const color=d.color||"–",num=d.number||"–";const colorText=color==="joker"?"★":(NM_COLOR_NAMES[color]||"–");const numText=num==="joker"?"★":num;return '<div class="nm-dice"><button type="button" class="nm-die nm-die-color '+(color!=="–"?"nm-"+color:"")+'" id="nm-roll-color" aria-label="Farbwürfel würfeln">'+colorText+'</button><button type="button" class="nm-die nm-die-number" id="nm-roll-number" aria-label="Zahlenwürfel würfeln">'+numText+'</button><button type="button" class="nm-roll-all" id="nm-roll-all">Würfeln</button></div>'}
 
 function nmLoad(){try{return JSON.parse(localStorage.getItem(NOCHMAL_KEY))||null}catch{return null}}
 function nmSave(s){localStorage.setItem(NOCHMAL_KEY,JSON.stringify(s))}
@@ -39,7 +43,7 @@ function renderNochMal(){
   const p=s.players.find(x=>x.id===s.active), score=nmScore(s,p);
   const wrap=document.createElement("section");wrap.className="stack nm-view";
   wrap.innerHTML='<div class="nm-tabs">'+s.players.map(x=>'<button type="button" class="nm-tab '+(x.id===p.id?'active':'')+'" data-nm-player="'+x.id+'">'+escapeHtml(x.name)+'<strong>'+nmScore(s,x).total+'</strong></button>').join("")+'</div>'+
-  '<section class="card nm-head"><div><p class="eyebrow">Digitaler Spielblock</p><h2>'+escapeHtml(p.name)+'</h2></div><div class="nm-total"><small>Punkte</small><strong>'+score.total+'</strong></div></section>'+
+  '<section class="card nm-head"><div><p class="eyebrow">Digitaler Spielblock</p><h2>'+escapeHtml(p.name)+'</h2></div><div class="nm-head-right">'+nmDiceHtml(s)+'<div class="nm-total"><small>Punkte</small><strong>'+score.total+'</strong></div></div></section>'+
   '<div class="nm-board-wrap"><div class="nm-board" id="nm-board"></div></div>'+
   '<section class="card nm-summary"><div><span>Spalten</span><strong>'+score.colPts+'</strong></div><div><span>Farben</span><strong>'+score.colorPts+'</strong></div><div><span>Joker</span><strong>'+p.jokers+'</strong></div><div><span>Offene ★</span><strong>−'+(score.openStars*2)+'</strong></div></section>'+
   '<section class="card nm-jokers"><div><strong>Verbleibende Joker</strong><small>Am Spielende je +1 Punkt</small></div><div class="nm-joker-actions"><button type="button" data-nm-joker="-1">−</button><b>'+p.jokers+'</b><button type="button" data-nm-joker="1">+</button></div></section>'+
@@ -61,7 +65,7 @@ app.addEventListener("click",e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
   if(e.target.id==="nm-add"){const box=document.querySelector("#nm-names");if(box.children.length<6)box.insertAdjacentHTML("beforeend",'<input class="text-input" placeholder="Name">');return}
-  const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
+  if(e.target.id==="nm-roll-all"||e.target.id==="nm-roll-color"||e.target.id==="nm-roll-number"){s.dice=s.dice||{};if(e.target.id!=="nm-roll-number")s.dice.color=nmRollDie(NM_DIE_COLORS);if(e.target.id!=="nm-roll-color")s.dice.number=nmRollDie(NM_DIE_NUMBERS);nmSave(s);renderNochMal();return}\n  const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
   const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s);renderNochMal();return}
   const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s);renderNochMal();return}
   if(e.target.id==="nm-reset"&&confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}
@@ -70,5 +74,5 @@ app.addEventListener("submit",e=>{
   if(e.target.id!=="nm-setup")return;e.preventDefault();
   const names=[...e.target.querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);
   if(!names.length)return alert("Bitte mindestens einen Namen eingeben.");
-  const s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},createdAt:Date.now()};s.active=s.players[0].id;nmSave(s);renderNochMal();
+  const s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},dice:{color:null,number:null},createdAt:Date.now()};s.active=s.players[0].id;nmSave(s);renderNochMal();
 });
