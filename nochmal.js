@@ -1,0 +1,74 @@
+const NOCHMAL_KEY = "spielzaehler-nochmal-v1";
+const NM_COLS = "ABCDEFGHIJKLMNO".split("");
+const NM_HIGH = [5,3,3,3,2,2,2,1,2,2,2,3,3,3,5];
+const NM_LOW  = [3,2,2,2,1,1,1,0,1,1,1,2,2,2,3];
+const NM_COLORS = [
+  ["g","g","g","y","y","y","y","g","b","b","b","o","y","y","y"],
+  ["o","g","y","y","g","y","o","o","p","b","b","o","o","g","g"],
+  ["b","g","p","g","y","g","g","p","p","p","o","o","o","g","g"],
+  ["b","p","p","g","o","o","b","b","g","g","y","y","y","p","b"],
+  ["p","o","o","o","y","p","b","b","o","o","o","p","p","p","p"],
+  ["p","b","b","p","p","p","p","b","y","o","p","b","b","b","o"],
+  ["y","y","b","b","b","b","p","y","y","y","g","g","g","o","o"]
+];
+const NM_STARS = new Set(["0-7","0-11","1-2","1-4","1-9","2-0","3-5","3-13","5-1","5-3","5-8","5-10","5-14","6-12"]);
+const NM_COLOR_NAMES={g:"Grün",y:"Gelb",b:"Blau",o:"Orange",p:"Pink"};
+
+function nmLoad(){try{return JSON.parse(localStorage.getItem(NOCHMAL_KEY))||null}catch{return null}}
+function nmSave(s){localStorage.setItem(NOCHMAL_KEY,JSON.stringify(s))}
+function nmNewPlayer(name){return {id:makeId(),name,cells:[],jokers:8}}
+function nmScore(s,p){
+  const set=new Set(p.cells), cols=[], colors={g:0,y:0,b:0,o:0,p:0};
+  NM_COLS.forEach((_,c)=>{if(NM_COLORS.every((r,ri)=>set.has(ri+"-"+c))) cols.push(c)});
+  Object.keys(colors).forEach(color=>{const all=[];NM_COLORS.forEach((r,ri)=>r.forEach((x,c)=>{if(x===color)all.push(ri+"-"+c)}));if(all.every(x=>set.has(x)))colors[color]=1});
+  let colPts=cols.reduce((n,c)=>n+(s.firstCols[c]===p.id?NM_HIGH[c]:NM_LOW[c]),0);
+  let colorPts=Object.keys(colors).reduce((n,c)=>n+(colors[c]?(s.firstColors[c]===p.id?5:3):0),0);
+  let openStars=[...NM_STARS].filter(x=>!set.has(x)).length;
+  return {total:colPts+colorPts+p.jokers-openStars*2,colPts,colorPts,openStars,colors,cols};
+}
+function nmRecalcClaims(s){
+  s.firstCols={};s.firstColors={};
+  for(const p of s.players){const sc=nmScore({...s,firstCols:{},firstColors:{}},p);sc.cols.forEach(c=>{if(s.firstCols[c]==null)s.firstCols[c]=p.id});Object.keys(sc.colors).forEach(c=>{if(sc.colors[c]&&s.firstColors[c]==null)s.firstColors[c]=p.id})}
+}
+function renderNochMal(){
+  title.textContent="Noch mal!"; app.replaceChildren();
+  let s=nmLoad();
+  if(!s||!s.players?.length){renderNmSetup();return}
+  if(!s.active||!s.players.some(p=>p.id===s.active))s.active=s.players[0].id;
+  nmRecalcClaims(s);nmSave(s);
+  const p=s.players.find(x=>x.id===s.active), score=nmScore(s,p);
+  const wrap=document.createElement("section");wrap.className="stack nm-view";
+  wrap.innerHTML='<div class="nm-tabs">'+s.players.map(x=>'<button type="button" class="nm-tab '+(x.id===p.id?'active':'')+'" data-nm-player="'+x.id+'">'+escapeHtml(x.name)+'<strong>'+nmScore(s,x).total+'</strong></button>').join("")+'</div>'+
+  '<section class="card nm-head"><div><p class="eyebrow">Digitaler Spielblock</p><h2>'+escapeHtml(p.name)+'</h2></div><div class="nm-total"><small>Punkte</small><strong>'+score.total+'</strong></div></section>'+
+  '<div class="nm-board-wrap"><div class="nm-board" id="nm-board"></div></div>'+
+  '<section class="card nm-summary"><div><span>Spalten</span><strong>'+score.colPts+'</strong></div><div><span>Farben</span><strong>'+score.colorPts+'</strong></div><div><span>Joker</span><strong>'+p.jokers+'</strong></div><div><span>Offene ★</span><strong>−'+(score.openStars*2)+'</strong></div></section>'+
+  '<section class="card nm-jokers"><div><strong>Verbleibende Joker</strong><small>Am Spielende je +1 Punkt</small></div><div class="nm-joker-actions"><button type="button" data-nm-joker="-1">−</button><b>'+p.jokers+'</b><button type="button" data-nm-joker="1">+</button></div></section>'+
+  '<button class="danger-button" type="button" id="nm-reset">Partie beenden / zurücksetzen</button>';
+  app.append(wrap); renderNmBoard(s,p);
+}
+function renderNmSetup(){
+  const el=document.createElement("form");el.id="nm-setup";el.className="stack";
+  el.innerHTML='<section class="hero card"><div><span class="hero-icon">✕</span><h2>Noch mal!</h2><p>Digitaler Spielblock. Felder antippen, Wertung läuft automatisch.</p></div></section><section class="card stack compact"><p class="eyebrow">1–6 Personen</p><h2>Mitspieler</h2><div id="nm-names" class="player-fields"><input class="text-input" placeholder="Name" required><input class="text-input" placeholder="Name"></div><button class="secondary-button" type="button" id="nm-add">+ Person</button></section><button class="primary-button sticky-action">Partie starten</button>';
+  app.append(el);
+}
+function renderNmBoard(s,p){
+  const b=document.querySelector("#nm-board"),set=new Set(p.cells);
+  b.innerHTML='<span></span>'+NM_COLS.map(x=>'<b class="nm-col-label">'+x+'</b>').join("");
+  NM_COLORS.forEach((row,r)=>{b.insertAdjacentHTML("beforeend",'<b class="nm-row-label">'+(r+1)+'</b>');row.forEach((color,c)=>{const key=r+"-"+c;b.insertAdjacentHTML("beforeend",'<button type="button" class="nm-cell nm-'+color+' '+(set.has(key)?'checked':'')+'" data-nm-cell="'+key+'" aria-label="'+NM_COLOR_NAMES[color]+' '+NM_COLS[c]+(r+1)+'">'+(NM_STARS.has(key)?'<span>★</span>':'')+'</button>')})});
+  b.insertAdjacentHTML("beforeend",'<span></span>'+NM_COLS.map((x,c)=>'<div class="nm-col-score"><b>'+NM_HIGH[c]+'</b><small>'+NM_LOW[c]+'</small></div>').join(""));
+}
+app.addEventListener("click",e=>{
+  if(view.name!=="nochmal")return;
+  let s=nmLoad();
+  if(e.target.id==="nm-add"){const box=document.querySelector("#nm-names");if(box.children.length<6)box.insertAdjacentHTML("beforeend",'<input class="text-input" placeholder="Name">');return}
+  const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
+  const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s);renderNochMal();return}
+  const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s);renderNochMal();return}
+  if(e.target.id==="nm-reset"&&confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}
+});
+app.addEventListener("submit",e=>{
+  if(e.target.id!=="nm-setup")return;e.preventDefault();
+  const names=[...e.target.querySelectorAll("input")].map(x=>x.value.trim()).filter(Boolean);
+  if(!names.length)return alert("Bitte mindestens einen Namen eingeben.");
+  const s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},createdAt:Date.now()};s.active=s.players[0].id;nmSave(s);renderNochMal();
+});
