@@ -5,6 +5,7 @@ Eine mobile, offlinefähige PWA zum Mitschreiben von Spielständen. Partien, Mit
 ## Funktionen
 
 - Mehrere Partien und beliebig viele Mitspieler
+- Startseite zur Auswahl der Zählweise, mit Freiem Spiel als erster verfügbarer Variante
 - Positive und negative Punkte pro Runde
 - Automatisch berechneter Gesamtstand
 - Runden nachträglich ändern oder löschen

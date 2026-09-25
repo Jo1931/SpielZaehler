@@ -7,7 +7,7 @@ const installButton = document.querySelector("#install-button");
 const connectionStatus = document.querySelector("#connection-status");
 
 let state = loadState();
-let view = { name: "home", gameId: null };
+let view = { name: "catalog", gameId: null };
 let editingRoundId = null;
 let installPrompt = null;
 
@@ -41,15 +41,21 @@ function navigate(name, gameId = null) {
 
 function render() {
   app.replaceChildren();
-  backButton.classList.toggle("hidden", view.name === "home");
+  backButton.classList.toggle("hidden", view.name === "catalog");
 
-  if (view.name === "new") renderNewGame();
+  if (view.name === "catalog") renderCatalog();
+  else if (view.name === "new") renderNewGame();
   else if (view.name === "game") renderGame(view.gameId);
   else renderHome();
 }
 
-function renderHome() {
+function renderCatalog() {
   title.textContent = "SpielZähler";
+  app.append(cloneTemplate("#catalog-template"));
+}
+
+function renderHome() {
+  title.textContent = "Freies Spiel";
   const fragment = cloneTemplate("#home-template");
   const list = fragment.querySelector("#game-list");
   fragment.querySelector("#game-count").textContent = state.games.length === 1 ? "1 Partie" : `${state.games.length} Partien`;
@@ -95,7 +101,7 @@ function getTotals(game) {
 
 function renderGame(gameId) {
   const game = state.games.find((item) => item.id === gameId);
-  if (!game) return navigate("home");
+  if (!game) return navigate("free");
 
   app.replaceChildren();
   title.textContent = game.name;
@@ -187,20 +193,22 @@ function formatScore(value) {
 }
 
 app.addEventListener("click", (event) => {
+  const gameMode = event.target.closest("[data-mode]");
   const newGame = event.target.closest('[data-action="new-game"]');
   const gameCard = event.target.closest("[data-game-id]");
   const editRound = event.target.closest("[data-edit-round]");
   const removeRound = event.target.closest("[data-delete-round]");
   const deleteGame = event.target.closest('[data-action="delete-game"]');
 
-  if (newGame) navigate("new");
+  if (gameMode?.dataset.mode === "free") navigate("free");
+  else if (newGame) navigate("new");
   else if (gameCard) navigate("game", gameCard.dataset.gameId);
   else if (editRound) startEditingRound(editRound.dataset.editRound);
   else if (removeRound) deleteRound(removeRound.dataset.deleteRound);
   else if (deleteGame && confirm("Diese Partie mit allen Runden wirklich löschen?")) {
     state.games = state.games.filter((game) => game.id !== view.gameId);
     persist();
-    navigate("home");
+    navigate("free");
   }
 });
 
@@ -235,7 +243,10 @@ app.addEventListener("submit", (event) => {
   } else if (event.target.id === "round-form") saveRound(event.target);
 });
 
-backButton.addEventListener("click", () => navigate("home"));
+backButton.addEventListener("click", () => {
+  if (view.name === "free") navigate("catalog");
+  else navigate("free");
+});
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();

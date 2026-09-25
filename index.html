@@ -32,13 +32,48 @@
       </div>
     </div>
 
+    <template id="catalog-template">
+      <section class="stack catalog-view">
+        <div class="catalog-intro">
+          <p class="eyebrow">Spiel auswählen</p>
+          <h2>Was spielt ihr heute?</h2>
+          <p>Wähle eine Zählweise. Weitere Spiele mit eigenen Regeln kommen Schritt für Schritt dazu.</p>
+        </div>
+        <div class="game-picker">
+          <button class="picker-card picker-card--featured" data-mode="free" type="button">
+            <span class="picker-icon" aria-hidden="true">✦</span>
+            <span class="picker-copy">
+              <strong>Freies Spiel</strong>
+              <small>Für jedes Spiel mit Punkten pro Runde</small>
+            </span>
+            <span class="picker-arrow" aria-hidden="true">›</span>
+          </button>
+          <article class="picker-card picker-card--soon" aria-label="Wizard – folgt bald">
+            <span class="picker-icon" aria-hidden="true">🪄</span>
+            <span class="picker-copy"><strong>Wizard</strong><small>Spezielle Zählweise folgt</small></span>
+            <span class="soon-badge">Bald</span>
+          </article>
+          <article class="picker-card picker-card--soon" aria-label="Kniffel – folgt bald">
+            <span class="picker-icon" aria-hidden="true">⚄</span>
+            <span class="picker-copy"><strong>Kniffel</strong><small>Spielblock folgt</small></span>
+            <span class="soon-badge">Bald</span>
+          </article>
+          <article class="picker-card picker-card--soon" aria-label="Rommé – folgt bald">
+            <span class="picker-icon" aria-hidden="true">♠</span>
+            <span class="picker-copy"><strong>Rommé</strong><small>Spezielle Zählweise folgt</small></span>
+            <span class="soon-badge">Bald</span>
+          </article>
+        </div>
+      </section>
+    </template>
+
     <template id="home-template">
       <section class="stack home-view">
         <div class="hero card">
           <div>
-            <span class="hero-icon" aria-hidden="true">♟</span>
-            <h2>Wer schreibt, gewinnt.</h2>
-            <p>Neue Partie starten, Punkte eintragen und jederzeit weiterspielen.</p>
+            <span class="hero-icon" aria-hidden="true">✦</span>
+            <h2>Freies Spiel</h2>
+            <p>Für alle Spiele, bei denen ihr Punkte pro Runde zusammenzählt.</p>
           </div>
           <button class="primary-button" data-action="new-game" type="button">Neue Partie</button>
         </div>
