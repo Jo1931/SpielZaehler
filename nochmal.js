@@ -1,4 +1,17 @@
 const NOCHMAL_KEY = "spielzaehler-nochmal-v1";
+const NM_ONLINE_KEY = "spielzaehler-nochmal-online-v1";
+const NM_SUPABASE_URL = "https://cgoicitfdwwvdfjkklwr.supabase.co";
+const NM_SUPABASE_KEY = "sb_publishable_diJ9QjpAcePv9NdytRlzTw_KLlQ2cbm";
+let nmOnlineChannel=null, nmApplyingRemote=false;
+function nmOnlineInfo(){try{return JSON.parse(localStorage.getItem(NM_ONLINE_KEY))}catch{return null}}
+function nmSetOnlineInfo(x){x?localStorage.setItem(NM_ONLINE_KEY,JSON.stringify(x)):localStorage.removeItem(NM_ONLINE_KEY)}
+function nmClient(){return window.supabase?.createClient(NM_SUPABASE_URL,NM_SUPABASE_KEY)}
+function nmRoomCode(){const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";return Array.from({length:4},()=>chars[Math.floor(Math.random()*chars.length)]).join("")}
+async function nmPushOnline(s){const o=nmOnlineInfo(),db=nmClient();if(!o||!db||nmApplyingRemote)return;await db.from("nm_rooms").update({state:s,updated_at:new Date().toISOString()}).eq("code",o.code)}
+async function nmSubscribe(code){const db=nmClient();if(!db)return;if(nmOnlineChannel)await db.removeChannel(nmOnlineChannel);nmOnlineChannel=db.channel("nm-"+code).on("postgres_changes",{event:"UPDATE",schema:"public",table:"nm_rooms",filter:"code=eq."+code},payload=>{if(!payload.new?.state)return;nmApplyingRemote=true;nmSave(payload.new.state,false);nmApplyingRemote=false;if(view.name==="nochmal")renderNochMal()}).subscribe()}
+async function nmCreateOnline(names){const db=nmClient();if(!db)throw new Error("Online-Dienst nicht geladen");for(let tries=0;tries<8;tries++){const code=nmRoomCode(),s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},dice:{colors:[null,null,null],numbers:[null,null,null]},createdAt:Date.now(),online:true,roomCode:code};s.active=s.players[0].id;const {error}=await db.from("nm_rooms").insert({code,state:s});if(!error){nmSetOnlineInfo({code});nmSave(s,false);await nmSubscribe(code);return code}}throw new Error("Raum konnte nicht erstellt werden")}
+async function nmJoinOnline(code){const db=nmClient();if(!db)throw new Error("Online-Dienst nicht geladen");code=code.trim().toUpperCase();const {data,error}=await db.from("nm_rooms").select("state").eq("code",code).maybeSingle();if(error||!data)throw new Error("Raum nicht gefunden");nmSetOnlineInfo({code});nmSave(data.state,false);await nmSubscribe(code);return data.state}
+function nmLeaveOnline(){const db=nmClient();if(db&&nmOnlineChannel)db.removeChannel(nmOnlineChannel);nmOnlineChannel=null;nmSetOnlineInfo(null);localStorage.removeItem(NOCHMAL_KEY)}
 const NM_COLS = "ABCDEFGHIJKLMNO".split("");
 const NM_HIGH = [5,3,3,3,2,2,2,1,2,2,2,3,3,3,5];
 const NM_LOW  = [3,2,2,2,1,1,1,0,1,1,1,2,2,2,3];
@@ -25,7 +38,7 @@ function nmDiceHtml(s){
 }
 
 function nmLoad(){try{return JSON.parse(localStorage.getItem(NOCHMAL_KEY))||null}catch{return null}}
-function nmSave(s){localStorage.setItem(NOCHMAL_KEY,JSON.stringify(s))}
+function nmSave(s,push=true){localStorage.setItem(NOCHMAL_KEY,JSON.stringify(s));if(push&&s?.online)nmPushOnline(s)}
 function nmNewPlayer(name){return {id:makeId(),name,cells:[],jokers:8}}
 function nmScore(s,p){
   const set=new Set(p.cells), cols=[], colors={g:0,y:0,b:0,o:0,p:0};
@@ -49,16 +62,16 @@ function renderNochMal(){
   const p=s.players.find(x=>x.id===s.active), score=nmScore(s,p);
   const wrap=document.createElement("section");wrap.className="stack nm-view";
   wrap.innerHTML='<div class="nm-tabs">'+s.players.map(x=>'<button type="button" class="nm-tab '+(x.id===p.id?'active':'')+'" data-nm-player="'+x.id+'">'+escapeHtml(x.name)+'<strong>'+nmScore(s,x).total+'</strong></button>').join("")+'</div>'+
-  '<section class="card nm-head"><div><p class="eyebrow">Digitaler Spielblock</p><h2>'+escapeHtml(p.name)+'</h2></div><div class="nm-total"><small>Punkte</small><strong>'+score.total+'</strong></div></section><div class="nm-floating-dice">'+nmDiceHtml(s)+'</div>'+
+  '<section class="card nm-head"><div><p class="eyebrow">Digitaler Spielblock'+(s.online?' · Online <b class="nm-room-code">'+escapeHtml(s.roomCode||nmOnlineInfo()?.code||'')+'</b>':'')+'</p><h2>'+escapeHtml(p.name)+'</h2></div><div class="nm-total"><small>Punkte</small><strong>'+score.total+'</strong></div></section><div class="nm-floating-dice">'+nmDiceHtml(s)+'</div>'+
   '<div class="nm-board-wrap"><div class="nm-board" id="nm-board"></div></div>'+
   '<section class="card nm-summary"><div><span>Spalten</span><strong>'+score.colPts+'</strong></div><div><span>Farben</span><strong>'+score.colorPts+'</strong></div><div><span>Joker</span><strong>'+p.jokers+'</strong></div><div><span>Offene ★</span><strong>−'+(score.openStars*2)+'</strong></div></section>'+
   '<section class="card nm-jokers"><div><strong>Verbleibende Joker</strong><small>Am Spielende je +1 Punkt</small></div><div class="nm-joker-actions"><button type="button" data-nm-joker="-1">−</button><b>'+p.jokers+'</b><button type="button" data-nm-joker="1">+</button></div></section>'+
-  '<button class="danger-button" type="button" id="nm-reset">Partie beenden / zurücksetzen</button>';
+  '<button class="danger-button" type="button" id="nm-reset">'+(s.online?'Online-Partie verlassen':'Partie beenden / zurücksetzen')+'</button>';
   app.append(wrap); renderNmBoard(s,p);
 }
 function renderNmSetup(){
   const el=document.createElement("form");el.id="nm-setup";el.className="stack";
-  el.innerHTML='<section class="hero card"><div><span class="hero-icon">✕</span><h2>Noch mal!</h2><p>Digitaler Spielblock. Felder antippen, Wertung läuft automatisch.</p></div></section><section class="card stack compact"><p class="eyebrow">1–6 Personen</p><h2>Mitspieler</h2><div id="nm-names" class="player-fields"><input class="text-input" placeholder="Name" required><input class="text-input" placeholder="Name"></div><button class="secondary-button" type="button" id="nm-add">+ Person</button></section><button class="primary-button sticky-action">Partie starten</button>';
+  el.innerHTML='<section class="hero card"><div><span class="hero-icon">✕</span><h2>Noch mal!</h2><p>Digitaler Spielblock. Lokal wie bisher oder gemeinsam auf mehreren Handys.</p></div></section><section class="card stack compact"><p class="eyebrow">Spielmodus</p><div class="nm-mode-grid"><button class="secondary-button" type="button" id="nm-local-mode">Lokal spielen</button><button class="primary-button" type="button" id="nm-online-mode">Online spielen</button></div></section><section class="card stack compact" id="nm-local-setup"><p class="eyebrow">1–6 Personen</p><h2>Mitspieler</h2><div id="nm-names" class="player-fields"><input class="text-input" placeholder="Name" required><input class="text-input" placeholder="Name"></div><button class="secondary-button" type="button" id="nm-add">+ Person</button><button class="primary-button" type="submit">Lokale Partie starten</button></section><section class="card stack compact hidden" id="nm-online-setup"><p class="eyebrow">Mehrere Handys</p><h2>Online-Partie</h2><p class="sk-help">Erstelle einen Raum und teile den 4-stelligen Code – oder tritt einem bestehenden Raum bei.</p><button class="primary-button" type="button" id="nm-online-create">Raum erstellen</button><div class="nm-join-row"><input class="text-input" id="nm-room-input" placeholder="Raumcode" maxlength="4" autocomplete="off"><button class="secondary-button" type="button" id="nm-online-join">Beitreten</button></div></section>';
   app.append(el);
 }
 function renderNmBoard(s,p){
@@ -70,12 +83,16 @@ function renderNmBoard(s,p){
 app.addEventListener("click",e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
+  if(e.target.id==="nm-local-mode"){document.querySelector("#nm-local-setup")?.classList.remove("hidden");document.querySelector("#nm-online-setup")?.classList.add("hidden");return}
+  if(e.target.id==="nm-online-mode"){document.querySelector("#nm-local-setup")?.classList.add("hidden");document.querySelector("#nm-online-setup")?.classList.remove("hidden");return}
+  if(e.target.id==="nm-online-create"){try{const names=[...document.querySelectorAll("#nm-names input")].map(x=>x.value.trim()).filter(Boolean);if(!names.length)names.push("Spieler 1");const code=await nmCreateOnline(names);renderNochMal();alert("Raumcode: "+code+"\nTeile diesen Code mit deinen Mitspielern.")}catch(err){alert(err.message)}return}
+  if(e.target.id==="nm-online-join"){try{const code=document.querySelector("#nm-room-input")?.value||"";if(code.trim().length!==4)return alert("Bitte 4-stelligen Raumcode eingeben.");await nmJoinOnline(code);renderNochMal()}catch(err){alert(err.message)}return}
   if(e.target.id==="nm-add"){const box=document.querySelector("#nm-names");if(box.children.length<6)box.insertAdjacentHTML("beforeend",'<input class="text-input" placeholder="Name">');return}
   if(e.target.id==="nm-roll-all"){s.dice={colors:Array.from({length:3},()=>nmRollDie(NM_DIE_COLORS)),numbers:Array.from({length:3},()=>nmRollDie(NM_DIE_NUMBERS))};nmSave(s);const panel=document.querySelector(".nm-dice-panel");if(panel){const temp=document.createElement("div");temp.innerHTML=nmDiceHtml(s);panel.replaceWith(temp.firstElementChild)}return}
   const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
   const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s);cell.classList.toggle("checked",i<0);const score=nmScore(s,p);const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=4){vals[0].textContent=score.colPts;vals[1].textContent=score.colorPts;vals[2].textContent=p.jokers;vals[3].textContent="−"+(score.openStars*2)}return}
   const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s);const score=nmScore(s,p);const jokerValue=document.querySelector(".nm-joker-actions b");if(jokerValue)jokerValue.textContent=p.jokers;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=3)vals[2].textContent=p.jokers;const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;return}
-  if(e.target.id==="nm-reset"&&confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}
+  if(e.target.id==="nm-reset"){if(s?.online){if(confirm("Online-Partie verlassen?")){nmLeaveOnline();renderNochMal()}}else if(confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}return}
 });
 app.addEventListener("submit",e=>{
   if(e.target.id!=="nm-setup")return;e.preventDefault();
@@ -83,3 +100,5 @@ app.addEventListener("submit",e=>{
   if(!names.length)return alert("Bitte mindestens einen Namen eingeben.");
   const s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},dice:{colors:[null,null,null],numbers:[null,null,null]},createdAt:Date.now()};s.active=s.players[0].id;nmSave(s);renderNochMal();
 });
+
+window.addEventListener("load",()=>{const o=nmOnlineInfo(),s=nmLoad();if(o&&s?.online)nmSubscribe(o.code)});
