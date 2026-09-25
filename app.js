@@ -248,7 +248,8 @@ app.addEventListener("submit", (event) => {
 });
 
 backButton.addEventListener("click", () => {
-  if (view.name === "free" || view.name === "nochmal" || view.name === "skullking") navigate("catalog");
+  if (view.name === "skullking") { if (typeof skLeaveGame === "function") skLeaveGame(); navigate("catalog"); }
+  else if (view.name === "free" || view.name === "nochmal") navigate("catalog");
   else navigate("free");
 });
 
