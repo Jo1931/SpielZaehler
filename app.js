@@ -248,7 +248,7 @@ app.addEventListener("submit", (event) => {
 });
 
 backButton.addEventListener("click", () => {
-  if (view.name === "skullking") { if (typeof skLeaveGame === "function") skLeaveGame(); navigate("catalog"); }
+  if (view.name === "skullking") { if (typeof skLeaveGame === "function" && skLeaveGame()) { renderSkullKing(); window.scrollTo({ top: 0, behavior: "smooth" }); } else navigate("catalog"); }
   else if (view.name === "free" || view.name === "nochmal") navigate("catalog");
   else navigate("free");
 });
