@@ -42,6 +42,31 @@ function nmEnsureOnlineTurn(s){if(!s.online)return;s.turn=s.turn||{number:1,acti
 function nmMyPlayer(s){const id=nmOnlineInfo()?.playerId;return s.players.find(p=>p.id===id)||s.players[0]}
 function nmIsFirstThree(s){return (s.turn?.number||1)<=3}
 function nmAvailableDie(s,type,i){if(!s.online||nmIsFirstThree(s)||!s.turn?.reserved)return true;return s.turn.reserved[type]!==i}
+function nmResolvedChoice(s,pid){return s.turn?.choice?.[pid]||null}
+function nmChoiceValues(s,ch){
+  if(!ch)return null;
+  const color=s.dice?.colors?.[ch.color],number=s.dice?.numbers?.[ch.number];
+  return {color,number};
+}
+function nmCellAllowedForChoice(key,values,p){
+  if(!values)return false;
+  const [r,c]=key.split("-").map(Number),cellColor=NM_COLORS[r]?.[c];
+  const colorOk=values.color==="joker"||cellColor===values.color;
+  return colorOk;
+}
+function nmValidateNewMarks(s,p,beforeCells){
+  const ch=nmResolvedChoice(s,p.id),v=nmChoiceValues(s,ch);if(!ch||!v)return {ok:false,msg:"Bitte zuerst deine Würfel auswählen und bestätigen."};
+  const before=new Set(beforeCells),after=new Set(p.cells),added=[...after].filter(x=>!before.has(x));
+  if(!added.length)return {ok:false,msg:"Markiere die Felder deiner gewählten Würfel."};
+  if(added.some(k=>!nmCellAllowedForChoice(k,v,p)))return {ok:false,msg:"Du darfst nur Felder der gewählten Farbe markieren."};
+  const need=v.number==="joker"?null:Number(v.number);
+  if(need!=null&&added.length!==need)return {ok:false,msg:"Du musst genau "+need+" Feld"+(need===1?"":"er")+" markieren."};
+  const addedSet=new Set(added);
+  const coords=added.map(k=>k.split("-").map(Number));
+  const linked=coords.every(([r,c])=>coords.length===1||coords.some(([rr,cc])=>!(rr===r&&cc===c)&&Math.abs(rr-r)+Math.abs(cc-c)===1)||[...before].some(k=>{const [rr,cc]=k.split("-").map(Number);return Math.abs(rr-r)+Math.abs(cc-c)===1}));
+  if(!linked)return {ok:false,msg:"Die neu markierten Felder müssen zusammenhängen bzw. an bereits markierte Felder anschließen."};
+  return {ok:true};
+}
 function nmFinishTurnIfReady(s){if(!s.online)return;const ids=s.players.map(p=>p.id);if(!ids.every(id=>s.turn.done.includes(id)))return;const ai=ids.indexOf(s.turn.activePlayerId);s.turn={number:s.turn.number+1,activePlayerId:ids[(ai+1)%ids.length],rolled:false,reserved:null,done:[]};s.dice={colors:[null,null,null],numbers:[null,null,null]}}
 
 function nmDiceHtml(s){
@@ -55,7 +80,7 @@ function nmDiceHtml(s){
   if(!s.turn.rolled) action=active?'<button type="button" class="nm-roll-all" id="nm-roll-all">Alle 6 würfeln</button>':'<button class="nm-roll-all" disabled>Warte auf '+escapeHtml(s.players.find(p=>p.id===s.turn.activePlayerId)?.name||"Mitspieler")+'</button>';
   else if(active&&!first3&&!r) action='<button type="button" class="secondary-button small" id="nm-pass">Passen</button>';
   else if(done) action='<button class="nm-roll-all" disabled>Auswahl bestätigt</button>';
-  else action='<button type="button" class="nm-roll-all" id="nm-confirm-dice">Würfel bestätigen</button>';
+  else if(s.turn.choice?.[me.id]) action='<button type="button" class="nm-roll-all" id="nm-confirm-fields">Felder bestätigen</button>'; else action='<button type="button" class="nm-roll-all" id="nm-confirm-dice">Würfel bestätigen</button>';
   return '<div class="nm-dice-panel"><small>Zug '+s.turn.number+' · '+(active?'Du bist aktiv':escapeHtml(s.players.find(p=>p.id===s.turn.activePlayerId)?.name||"")+' ist aktiv')+(first3?' · freie Wahl':'')+'</small><div class="nm-dice-row">'+colorDice+'</div><div class="nm-dice-row">'+numDice+'</div>'+action+'</div>';
 }
 
@@ -130,9 +155,10 @@ app.addEventListener("click",async e=>{
   const dc=e.target.closest("[data-nm-die-color]");if(dc&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),i=Number(dc.dataset.nmDieColor);if(s.turn.done.includes(me.id)||!nmAvailableDie(s,"color",i))return;nmPendingDiceChoice.color=i;document.querySelectorAll("[data-nm-die-color]").forEach(x=>x.classList.toggle("nm-selected",Number(x.dataset.nmDieColor)===i));return}
   const dn=e.target.closest("[data-nm-die-number]");if(dn&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),i=Number(dn.dataset.nmDieNumber);if(s.turn.done.includes(me.id)||!nmAvailableDie(s,"number",i))return;nmPendingDiceChoice.number=i;document.querySelectorAll("[data-nm-die-number]").forEach(x=>x.classList.toggle("nm-selected",Number(x.dataset.nmDieNumber)===i));return}
   if(e.target.id==="nm-pass"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s);if(s.turn.activePlayerId!==me.id)return;s.turn.reserved=null;nmPendingDiceChoice={color:null,number:null};s.turn.done.push(me.id);nmFinishTurnIfReady(s);nmSave(s,true);renderNochMal();return}
-  if(e.target.id==="nm-confirm-dice"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),ch={...nmPendingDiceChoice};if(ch.color==null||ch.number==null)return alert("Bitte einen Farb- und einen Zahlenwürfel auswählen.");if(!nmAvailableDie(s,"color",ch.color)||!nmAvailableDie(s,"number",ch.number))return alert("Diese Würfel hat der aktive Spieler bereits genommen.");s.turn.choice=s.turn.choice||{};s.turn.choice[me.id]=ch;if(s.turn.activePlayerId===me.id&&!nmIsFirstThree(s))s.turn.reserved={color:ch.color,number:ch.number};s.turn.done.push(me.id);nmPendingDiceChoice={color:null,number:null};nmFinishTurnIfReady(s);nmSave(s,true);renderNochMal();return}
+  if(e.target.id==="nm-confirm-dice"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),ch={...nmPendingDiceChoice};if(ch.color==null||ch.number==null)return alert("Bitte einen Farb- und einen Zahlenwürfel auswählen.");if(!nmAvailableDie(s,"color",ch.color)||!nmAvailableDie(s,"number",ch.number))return alert("Diese Würfel hat der aktive Spieler bereits genommen.");s.turn.choice=s.turn.choice||{};s.turn.choice[me.id]=ch;s.turn.beforeCells=s.turn.beforeCells||{};s.turn.beforeCells[me.id]=[...me.cells];if(s.turn.activePlayerId===me.id&&!nmIsFirstThree(s))s.turn.reserved={color:ch.color,number:ch.number};nmPendingDiceChoice={color:null,number:null};nmSave(s,true);renderNochMal();return}
   const tab=e.target.closest("[data-nm-player]");if(tab){if(s.online)return;s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
-  const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s,true);cell.classList.toggle("checked",i<0);const score=nmScore(s,p);const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=4){vals[0].textContent=score.colPts;vals[1].textContent=score.colorPts;vals[2].textContent=p.jokers;vals[3].textContent="−"+(score.openStars*2)}return}
+  const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell;if(s.online){const me=nmMyPlayer(s),ch=nmResolvedChoice(s,me.id);if(!ch)return alert("Bitte zuerst Würfel auswählen und bestätigen.");const vals=nmChoiceValues(s,ch);if(!nmCellAllowedForChoice(k,vals,me))return alert("Dieses Feld passt nicht zu deinem gewählten Farbwürfel.");}const i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s,true);cell.classList.toggle("checked",i<0);const score=nmScore(s,p);const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=4){vals[0].textContent=score.colPts;vals[1].textContent=score.colorPts;vals[2].textContent=p.jokers;vals[3].textContent="−"+(score.openStars*2)}return}
+  if(e.target.id==="nm-confirm-fields"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),before=s.turn.beforeCells?.[me.id]||[];const check=nmValidateNewMarks(s,me,before);if(!check.ok)return alert(check.msg);if(!s.turn.done.includes(me.id))s.turn.done.push(me.id);nmFinishTurnIfReady(s);nmSave(s,true);renderNochMal();return}
   const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s,true);const score=nmScore(s,p);const jokerValue=document.querySelector(".nm-joker-actions b");if(jokerValue)jokerValue.textContent=p.jokers;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=3)vals[2].textContent=p.jokers;const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;return}
   if(e.target.id==="nm-reset"){if(s?.online){if(confirm("Online-Partie verlassen?")){nmLeaveOnline();renderNochMal()}}else if(confirm("Lokale Partie beenden und im Archiv speichern?")){nmArchiveLocal(s);localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}return}
 });
