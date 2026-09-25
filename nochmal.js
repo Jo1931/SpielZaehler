@@ -1,5 +1,9 @@
 const NOCHMAL_KEY = "spielzaehler-nochmal-v1";
 const NM_ONLINE_KEY = "spielzaehler-nochmal-online-v1";
+const NM_ONLINE_ARCHIVE = "spielzaehler-nochmal-online-archive-v1";
+function nmOnlineArchive(){try{const a=JSON.parse(localStorage.getItem(NM_ONLINE_ARCHIVE));return Array.isArray(a)?a:[]}catch{return []}}
+function nmArchiveRoom(code,state){if(!code)return;const a=nmOnlineArchive().filter(x=>x.code!==code);a.unshift({code,state,updatedAt:Date.now()});localStorage.setItem(NM_ONLINE_ARCHIVE,JSON.stringify(a.slice(0,20)))}
+function nmRemoveArchivedRoom(code){localStorage.setItem(NM_ONLINE_ARCHIVE,JSON.stringify(nmOnlineArchive().filter(x=>x.code!==code)))}
 const NM_SUPABASE_URL = "https://cgoicitfdwwvdfjkklwr.supabase.co";
 const NM_SUPABASE_KEY = "sb_publishable_diJ9QjpAcePv9NdytRlzTw_KLlQ2cbm";
 let nmOnlineChannel=null, nmApplyingRemote=false;
@@ -11,7 +15,7 @@ async function nmPushOnline(s){const o=nmOnlineInfo(),db=nmClient();if(!o||!db||
 async function nmSubscribe(code){const db=nmClient();if(!db)return;if(nmOnlineChannel)await db.removeChannel(nmOnlineChannel);nmOnlineChannel=db.channel("nm-"+code).on("postgres_changes",{event:"UPDATE",schema:"public",table:"nm_rooms",filter:"code=eq."+code},payload=>{if(!payload.new?.state)return;const incoming=payload.new.state,current=nmLoad();if(current&&JSON.stringify(current)===JSON.stringify(incoming))return;const sx=window.scrollX,sy=window.scrollY,board=document.querySelector(".nm-board-wrap"),bx=board?.scrollLeft||0;nmApplyingRemote=true;nmSave(incoming,false);nmApplyingRemote=false;if(view.name==="nochmal"){renderNochMal();requestAnimationFrame(()=>{window.scrollTo(sx,sy);const b=document.querySelector(".nm-board-wrap");if(b)b.scrollLeft=bx})}}).subscribe()}
 async function nmCreateOnline(names){const db=nmClient();if(!db)throw new Error("Online-Dienst nicht geladen");for(let tries=0;tries<8;tries++){const code=nmRoomCode(),s={players:names.map(nmNewPlayer),active:null,firstCols:{},firstColors:{},dice:{colors:[null,null,null],numbers:[null,null,null]},createdAt:Date.now(),online:true,roomCode:code};s.active=s.players[0].id;const {error}=await db.from("nm_rooms").insert({code,state:s});if(!error){nmSetOnlineInfo({code});nmSave(s,false);await nmSubscribe(code);return code}}throw new Error("Raum konnte nicht erstellt werden")}
 async function nmJoinOnline(code){const db=nmClient();if(!db)throw new Error("Online-Dienst nicht geladen");code=code.trim().toUpperCase();const {data,error}=await db.from("nm_rooms").select("state").eq("code",code).maybeSingle();if(error||!data)throw new Error("Raum nicht gefunden");nmSetOnlineInfo({code});nmSave(data.state,false);await nmSubscribe(code);return data.state}
-function nmLeaveOnline(){const db=nmClient();if(db&&nmOnlineChannel)db.removeChannel(nmOnlineChannel);nmOnlineChannel=null;nmSetOnlineInfo(null);localStorage.removeItem(NOCHMAL_KEY)}
+function nmLeaveOnline(){const o=nmOnlineInfo(),s=nmLoad();if(o?.code)nmArchiveRoom(o.code,s);const db=nmClient();if(db&&nmOnlineChannel)db.removeChannel(nmOnlineChannel);nmOnlineChannel=null;nmSetOnlineInfo(null);localStorage.removeItem(NOCHMAL_KEY)}
 const NM_COLS = "ABCDEFGHIJKLMNO".split("");
 const NM_HIGH = [5,3,3,3,2,2,2,1,2,2,2,3,3,3,5];
 const NM_LOW  = [3,2,2,2,1,1,1,0,1,1,1,2,2,2,3];
@@ -72,6 +76,12 @@ function renderNochMal(){
 function renderNmSetup(){
   const el=document.createElement("form");el.id="nm-setup";el.className="stack";
   el.innerHTML='<section class="hero card"><div><span class="hero-icon">✕</span><h2>Noch mal!</h2><p>Digitaler Spielblock. Lokal wie bisher oder gemeinsam auf mehreren Handys.</p></div></section><section class="card stack compact"><p class="eyebrow">Spielmodus</p><div class="nm-mode-grid"><button class="secondary-button" type="button" id="nm-local-mode">Lokal spielen</button><button class="primary-button" type="button" id="nm-online-mode">Online spielen</button></div></section><section class="card stack compact" id="nm-local-setup"><p class="eyebrow">1–6 Personen</p><h2>Mitspieler</h2><div id="nm-names" class="player-fields"><input class="text-input" placeholder="Name" required><input class="text-input" placeholder="Name"></div><button class="secondary-button" type="button" id="nm-add">+ Person</button><button class="primary-button" type="submit">Lokale Partie starten</button></section><section class="card stack compact hidden" id="nm-online-setup"><p class="eyebrow">Mehrere Handys</p><h2>Online-Partie</h2><p class="sk-help">Erstelle einen Raum und teile den 4-stelligen Code – oder tritt einem bestehenden Raum bei.</p><button class="primary-button" type="button" id="nm-online-create">Raum erstellen</button><div class="nm-join-row"><input class="text-input" id="nm-room-input" placeholder="Raumcode" maxlength="4" autocomplete="off"><button class="secondary-button" type="button" id="nm-online-join">Beitreten</button></div></section>';
+  const archive=nmOnlineArchive();
+  if(archive.length){
+    const box=document.createElement("section");box.className="card stack compact nm-online-archive";
+    box.innerHTML='<div><p class="eyebrow">Online</p><h2>Letzte Online-Partien</h2></div><div class="nm-archive-list">'+archive.map(x=>{const names=(x.state?.players||[]).map(p=>escapeHtml(p.name)).join(", ");return '<div class="nm-archive-item"><div><strong>'+escapeHtml(x.code)+'</strong><small>'+(names||"Noch mal!")+'</small></div><div class="nm-archive-actions"><button class="secondary-button small" type="button" data-nm-rejoin="'+escapeHtml(x.code)+'">Weiter</button><button class="text-button" type="button" data-nm-archive-delete="'+escapeHtml(x.code)+'">Löschen</button></div></div>'}).join("")+'</div>';
+    el.append(box);
+  }
   app.append(el);
 }
 function renderNmBoard(s,p){
@@ -83,6 +93,8 @@ function renderNmBoard(s,p){
 app.addEventListener("click",async e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
+  const rejoin=e.target.closest("[data-nm-rejoin]");if(rejoin){try{await nmJoinOnline(rejoin.dataset.nmRejoin);renderNochMal()}catch(err){alert("Partie nicht mehr verfügbar: "+err.message)}return}
+  const delArchive=e.target.closest("[data-nm-archive-delete]");if(delArchive){if(confirm("Partie aus dem Archiv entfernen?")){nmRemoveArchivedRoom(delArchive.dataset.nmArchiveDelete);renderNochMal()}return}
   if(e.target.id==="nm-local-mode"){document.querySelector("#nm-local-setup")?.classList.remove("hidden");document.querySelector("#nm-online-setup")?.classList.add("hidden");return}
   if(e.target.id==="nm-online-mode"){document.querySelector("#nm-local-setup")?.classList.add("hidden");document.querySelector("#nm-online-setup")?.classList.remove("hidden");return}
   if(e.target.id==="nm-online-create"){try{const names=[...document.querySelectorAll("#nm-names input")].map(x=>x.value.trim()).filter(Boolean);if(!names.length)names.push("Spieler 1");const code=await nmCreateOnline(names);renderNochMal();alert("Raumcode: "+code+"\nTeile diesen Code mit deinen Mitspielern.")}catch(err){alert(err.message)}return}
