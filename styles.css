@@ -236,3 +236,6 @@ button.picker-card { cursor: pointer; }
 .nm-archive-list{display:grid;gap:10px}.nm-archive-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:14px;background:var(--surface-2)}.nm-archive-item>div:first-child{display:grid;gap:3px}.nm-archive-item small{opacity:.7}.nm-archive-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
 
 .nm-online-players{display:flex;gap:8px;overflow:auto}.nm-online-players span{white-space:nowrap;padding:7px 10px;border-radius:12px;background:var(--surface-2)}.nm-online-players span.active{outline:2px solid currentColor}.nm-die[disabled]{opacity:.35}.nm-die.nm-selected{outline:3px solid currentColor;transform:scale(1.08)}
+
+/* Clear online dice selection feedback */
+.nm-dice-panel .nm-die{transition:transform .12s ease,box-shadow .12s ease,outline .12s ease}.nm-dice-panel .nm-die.nm-selected{outline:4px solid #fff;outline-offset:3px;box-shadow:0 0 0 3px var(--accent),0 8px 18px rgba(0,0,0,.28);transform:scale(1.12);opacity:1}
