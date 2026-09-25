@@ -73,7 +73,7 @@ function nmDiceHtml(s){
   const d=s.dice||{}, colors=Array.isArray(d.colors)?d.colors:[null,null,null], nums=Array.isArray(d.numbers)?d.numbers:[null,null,null];
   const dieColor=x=>x==="joker"?"nm-black":x?"nm-"+x:"", colorFace=x=>x==="joker"?"✕":x?"":"–", numFace=x=>x==="joker"?"?":(x??"–");
   if(!s.online)return '<div class="nm-dice-panel"><div class="nm-dice-row">'+colors.map(x=>'<span class="nm-die nm-color-die '+dieColor(x)+'">'+colorFace(x)+'</span>').join("")+'</div><div class="nm-dice-row">'+nums.map(x=>'<span class="nm-die nm-number-die">'+numFace(x)+'</span>').join("")+'</div><button type="button" class="nm-roll-all" id="nm-roll-all">Alle 6 würfeln</button></div>';
-  nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),active=s.turn.activePlayerId===me.id,done=s.turn.done.includes(me.id),first3=nmIsFirstThree(s),r=s.turn.reserved,pending=nmPendingDiceChoice;
+  nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),active=s.turn.activePlayerId===me.id,done=s.turn.done.includes(me.id),first3=nmIsFirstThree(s),r=s.turn.reserved,confirmed=s.turn.choice?.[me.id],pending=confirmed||nmPendingDiceChoice;
   const colorDice=colors.map((x,i)=>'<button type="button" '+(!s.turn.rolled||done||(!active&&!first3)||!nmAvailableDie(s,"color",i)?'disabled':'')+' class="nm-die nm-color-die '+dieColor(x)+' '+(pending.color===i?'nm-selected':'')+'" data-nm-die-color="'+i+'">'+colorFace(x)+'</button>').join("");
   const numDice=nums.map((x,i)=>'<button type="button" '+(!s.turn.rolled||done||(!active&&!first3)||!nmAvailableDie(s,"number",i)?'disabled':'')+' class="nm-die nm-number-die '+(pending.number===i?'nm-selected':'')+'" data-nm-die-number="'+i+'">'+numFace(x)+'</button>').join("");
   let action='';
