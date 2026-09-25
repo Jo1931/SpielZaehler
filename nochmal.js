@@ -65,7 +65,8 @@ app.addEventListener("click",e=>{
   if(view.name!=="nochmal")return;
   let s=nmLoad();
   if(e.target.id==="nm-add"){const box=document.querySelector("#nm-names");if(box.children.length<6)box.insertAdjacentHTML("beforeend",'<input class="text-input" placeholder="Name">');return}
-  if(e.target.id==="nm-roll-all"||e.target.id==="nm-roll-color"||e.target.id==="nm-roll-number"){s.dice=s.dice||{};if(e.target.id!=="nm-roll-number")s.dice.color=nmRollDie(NM_DIE_COLORS);if(e.target.id!=="nm-roll-color")s.dice.number=nmRollDie(NM_DIE_NUMBERS);nmSave(s);renderNochMal();return}\n  const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
+  if(e.target.id==="nm-roll-all"||e.target.id==="nm-roll-color"||e.target.id==="nm-roll-number"){s.dice=s.dice||{};if(e.target.id!=="nm-roll-number")s.dice.color=nmRollDie(NM_DIE_COLORS);if(e.target.id!=="nm-roll-color")s.dice.number=nmRollDie(NM_DIE_NUMBERS);nmSave(s);renderNochMal();return}
+  const tab=e.target.closest("[data-nm-player]");if(tab){s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
   const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell,i=p.cells.indexOf(k);if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s);renderNochMal();return}
   const j=e.target.closest("[data-nm-joker]");if(j){const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s);renderNochMal();return}
   if(e.target.id==="nm-reset"&&confirm("Diese Noch-mal!-Partie wirklich löschen?")){localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}
