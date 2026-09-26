@@ -241,3 +241,6 @@ button.picker-card { cursor: pointer; }
 .nm-dice-panel .nm-die{transition:transform .12s ease,box-shadow .12s ease,outline .12s ease}.nm-dice-panel .nm-die.nm-selected{outline:4px solid #fff;outline-offset:3px;box-shadow:0 0 0 3px var(--accent),0 8px 18px rgba(0,0,0,.28);transform:scale(1.12);opacity:1}
 
 .nm-lobby-players{display:grid;gap:8px}.nm-lobby-player{display:flex;align-items:center;gap:8px;padding:11px 12px;border-radius:12px;background:var(--surface-2)}.nm-lobby-player strong{margin-right:auto}.nm-lobby-player span,.nm-lobby-player small{padding:3px 7px;border-radius:999px;background:var(--surface);font-size:.78rem}.nm-lobby .hero h2{letter-spacing:.08em}
+
+/* Online join form: mobile-safe layout */
+.nm-online-archive+.nm-local-archive{}#nm-online-setup .nm-join-row{display:grid;grid-template-columns:1fr;gap:10px}#nm-online-setup .nm-join-row .text-input,#nm-online-setup .nm-join-row button{width:100%;min-width:0;box-sizing:border-box}#nm-online-setup #nm-room-input{text-transform:uppercase;letter-spacing:.12em}#nm-online-setup #nm-online-join{justify-self:stretch}
