@@ -142,6 +142,17 @@ function nmScore(s,p){
   let openStars=[...NM_STARS].filter(x=>!set.has(x)).length;
   return {total:colPts+colorPts+p.jokers-openStars*2,colPts,colorPts,openStars,colors,cols};
 }
+function nmCompletedColorCount(s,p){return Object.values(nmScore(s,p).colors).filter(Boolean).length}
+function nmGameEnder(s){return s.players.find(p=>nmCompletedColorCount(s,p)>=2)||null}
+function nmEndGameIfNeeded(s){
+  const ender=nmGameEnder(s);if(!ender)return false;
+  nmRecalcClaims(s);
+  s.phase="finished";
+  s.finishedAt=Date.now();
+  s.finishedByPlayerId=ender.id;
+  nmPendingDiceChoice={color:null,number:null};nmPendingCells.clear();
+  return true;
+}
 function nmRecalcClaims(s){
   s.firstCols={};s.firstColors={};
   for(const p of s.players){const sc=nmScore({...s,firstCols:{},firstColors:{}},p);sc.cols.forEach(c=>{if(s.firstCols[c]==null)s.firstCols[c]=p.id});Object.keys(sc.colors).forEach(c=>{if(sc.colors[c]&&s.firstColors[c]==null)s.firstColors[c]=p.id})}
@@ -151,6 +162,14 @@ function renderNochMal(){
   let s=nmLoad();
   if(!s||!s.players?.length){renderNmSetup();return}
   if(s.online&&s.phase==="lobby"){nmRenderLobby(s);return}
+  if(s.phase==="finished"){
+    nmRecalcClaims(s);nmSave(s);
+    const ranked=[...s.players].sort((a,b)=>nmScore(s,b).total-nmScore(s,a).total);
+    const ender=s.players.find(p=>p.id===s.finishedByPlayerId)||nmGameEnder(s);
+    const el=document.createElement("section");el.className="stack nm-view";
+    el.innerHTML='<section class="hero card"><div><p class="eyebrow">Spiel beendet</p><h2>'+(ender?escapeHtml(ender.name)+' hat 2 Farben abgeschlossen':'2 Farben abgeschlossen')+'</h2><p>Endstand</p></div></section><section class="card"><div class="nm-online-players">'+ranked.map((p,i)=>'<span>'+(i+1)+'. '+escapeHtml(p.name)+' <b>'+nmScore(s,p).total+' Punkte</b></span>').join("")+'</div></section><button class="danger-button" type="button" id="nm-reset">'+(s.online?'Online-Partie verlassen':'Partie beenden / zurücksetzen')+'</button>';
+    app.append(el);return
+  }
   if(!s.active||!s.players.some(p=>p.id===s.active))s.active=s.players[0].id;
   nmRecalcClaims(s);nmSave(s);
   if(s.online){nmEnsureOnlineTurn(s);s.active=nmMyPlayer(s).id} const p=s.players.find(x=>x.id===s.active), score=nmScore(s,p);
@@ -216,7 +235,7 @@ app.addEventListener("click",async e=>{
   if(e.target.id==="nm-confirm-dice"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),ch={...nmPendingDiceChoice};if(ch.color==null||ch.number==null)return alert("Bitte einen Farb- und einen Zahlenwürfel auswählen.");if(!nmAvailableDie(s,"color",ch.color)||!nmAvailableDie(s,"number",ch.number))return alert("Diese Würfel hat der aktive Spieler bereits genommen.");if(!nmChoiceHasLegalMove(s,me,ch))return alert("Mit dieser Würfelkombination kannst du keinen legalen Zug machen. Bitte wähle andere Würfel.");s.turn.choice=s.turn.choice||{};s.turn.choice[me.id]=ch;s.turn.beforeCells=s.turn.beforeCells||{};s.turn.beforeCells[me.id]=[...me.cells];nmPendingCells.clear();if(s.turn.activePlayerId===me.id)s.turn.reserved={color:ch.color,number:ch.number};nmPendingDiceChoice={color:null,number:null};nmSave(s,true);renderNochMal();return}
   const tab=e.target.closest("[data-nm-player]");if(tab){if(s.online)return;s.active=tab.dataset.nmPlayer;nmSave(s);renderNochMal();return}
   const cell=e.target.closest("[data-nm-cell]");if(cell){const p=s.players.find(x=>x.id===s.active),k=cell.dataset.nmCell;if(s.online){const me=nmMyPlayer(s),ch=nmResolvedChoice(s,me.id);if(!ch)return alert("Bitte zuerst Würfel auswählen und bestätigen.");const vals=nmChoiceValues(s,ch);if(!nmCellAllowedForChoice(k,vals,me))return alert("Dieses Feld passt nicht zu deinem gewählten Farbwürfel.");}const i=p.cells.indexOf(k);if(s.online){const before=s.turn?.beforeCells?.[p.id]||[],base=new Set(before);if(base.has(k))return;const pending=[...nmPendingCells];if(nmPendingCells.has(k)){nmPendingCells.delete(k);cell.classList.remove("checked")}else{if(!pending.length&&Number(k.split("-")[1])!==7&&!nmHasAdjacentMarked(k,before))return alert("Beginne in Spalte H oder direkt neben einem bereits angekreuzten Feld.");if(pending.length&&!nmHasAdjacentMarked(k,pending)&&!(before.length&&nmHasAdjacentMarked(k,before)))return alert("Die neuen Kreuze dieses Zuges müssen direkt zusammenhängen.");nmPendingCells.add(k);cell.classList.add("checked")}return}else{if(i>=0)p.cells.splice(i,1);else p.cells.push(k);nmRecalcClaims(s);nmSave(s,false);cell.classList.toggle("checked",i<0);}const score=nmScore(s,p);const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=4){vals[0].textContent=score.colPts;vals[1].textContent=score.colorPts;vals[2].textContent=p.jokers;vals[3].textContent="−"+(score.openStars*2)}return}
-  if(e.target.id==="nm-confirm-fields"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),before=s.turn.beforeCells?.[me.id]||[],candidate={...me,cells:[...new Set([...before,...nmPendingCells])]};const check=nmValidateNewMarks(s,candidate,before);if(!check.ok)return alert(check.msg);me.cells=candidate.cells;const ch=nmResolvedChoice(s,me.id),vals=nmChoiceValues(s,ch),jokerCount=(vals?.color==="joker"?1:0)+(vals?.number==="joker"?1:0);if(jokerCount>me.jokers)return alert("Du hast nicht mehr genug Joker.");me.jokers-=jokerCount;nmPendingCells.clear();if(!s.turn.done.includes(me.id))s.turn.done.push(me.id);nmFinishTurnIfReady(s);nmSave(s,true);renderNochMal();return}
+  if(e.target.id==="nm-confirm-fields"&&s?.online){nmEnsureOnlineTurn(s);const me=nmMyPlayer(s),before=s.turn.beforeCells?.[me.id]||[],candidate={...me,cells:[...new Set([...before,...nmPendingCells])]};const check=nmValidateNewMarks(s,candidate,before);if(!check.ok)return alert(check.msg);me.cells=candidate.cells;const ch=nmResolvedChoice(s,me.id),vals=nmChoiceValues(s,ch),jokerCount=(vals?.color==="joker"?1:0)+(vals?.number==="joker"?1:0);if(jokerCount>me.jokers)return alert("Du hast nicht mehr genug Joker.");me.jokers-=jokerCount;nmPendingCells.clear();if(!s.turn.done.includes(me.id))s.turn.done.push(me.id);if(!nmEndGameIfNeeded(s))nmFinishTurnIfReady(s);nmSave(s,true);renderNochMal();return}
   const j=e.target.closest("[data-nm-joker]");if(j){if(s.online)return;const p=s.players.find(x=>x.id===s.active);p.jokers=Math.max(0,Math.min(8,p.jokers+Number(j.dataset.nmJoker)));nmSave(s,true);const score=nmScore(s,p);const jokerValue=document.querySelector(".nm-joker-actions b");if(jokerValue)jokerValue.textContent=p.jokers;const vals=document.querySelectorAll(".nm-summary strong");if(vals.length>=3)vals[2].textContent=p.jokers;const total=document.querySelector(".nm-total strong");if(total)total.textContent=score.total;const activeTab=document.querySelector(".nm-tab.active strong");if(activeTab)activeTab.textContent=score.total;return}
   if(e.target.id==="nm-reset"){if(s?.online){if(confirm("Online-Partie verlassen?")){nmLeaveOnline();renderNochMal()}}else if(confirm("Lokale Partie beenden und im Archiv speichern?")){nmArchiveLocal(s);localStorage.removeItem(NOCHMAL_KEY);renderNochMal()}return}
 });
